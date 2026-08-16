@@ -17,8 +17,3 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     TenderStatus.WON: set(),
     TenderStatus.LOST: set(),
 }
-
-# Терминальные статусы (удобно для проверок и фильтров).
-TERMINAL_STATUSES: frozenset[str] = frozenset(
-    status for status, targets in ALLOWED_TRANSITIONS.items() if not targets
-)

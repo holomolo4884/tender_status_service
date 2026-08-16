@@ -1,28 +1,11 @@
-import uuid
-
 from django.db import models
 
 from .constants import ALLOWED_TRANSITIONS, TenderStatus
 
 
-class TimeStampedModel(models.Model):
-    """Абстрактная база с таймстампами создания и обновления."""
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
-
-
-class Tender(TimeStampedModel):
+class Tender(models.Model):
     """Тендер с конечным набором статусов."""
 
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-    )
     title = models.CharField("Название", max_length=255)
     description = models.TextField("Описание", blank=True)
     status = models.CharField(
@@ -32,7 +15,8 @@ class Tender(TimeStampedModel):
         default=TenderStatus.DRAFT,
         db_index=True,
     )
-    version = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлён", auto_now=True)
 
     class Meta:
         db_table = "tenders"
@@ -40,27 +24,22 @@ class Tender(TimeStampedModel):
         verbose_name = "Тендер"
         verbose_name_plural = "Тендеры"
 
-    def __str__(self) -> str:
+    def __str__(self):
         return f"{self.title} [{self.status}]"
 
     def can_transition_to(self, new_status: str) -> bool:
-        """Разрешён ли переход из текущего статуса в `new_status`."""
+        """Разрешён ли переход из текущего статуса в new_status."""
         return new_status in ALLOWED_TRANSITIONS.get(self.status, set())
 
 
 class TenderStatusHistory(models.Model):
     """
-    Аудит-лог изменений статуса тендера.
+    Аудит-лог изменений статуса: кто, когда и почему.
 
-    Таблица append-only: записи только создаются, не обновляются
-    и не удаляются. Каждое изменение фиксирует кто, когда и почему.
+    Таблица append-only — записи только добавляются,
+    не обновляются и не удаляются.
     """
 
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-    )
     tender = models.ForeignKey(
         Tender,
         on_delete=models.CASCADE,
@@ -86,9 +65,6 @@ class TenderStatusHistory(models.Model):
         ordering = ["-changed_at"]
         verbose_name = "История статуса тендера"
         verbose_name_plural = "История статусов тендеров"
-        indexes = [
-            models.Index(fields=["tender", "-changed_at"]),
-        ]
 
-    def __str__(self) -> str:
-        return f"{self.tender_id}: {self.old_status} → {self.new_status}"
+    def __str__(self):
+        return f"{self.tender_id}: {self.old_status} -> {self.new_status}"
